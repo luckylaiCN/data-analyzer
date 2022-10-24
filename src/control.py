@@ -35,7 +35,7 @@ class DataConfiuration:
         "parameters_count": 2,
         "name": "速度时间图像"
     }
-    parameters_count = 0
+    parameter_count = 0
     fit_object = LinearFuncSQ
     labels = ["x", "y"]
     parameter_names = []
@@ -48,6 +48,7 @@ class DataConfiuration:
         if type(conf_dict) == dict:
             if conf_dict.get("fitMod") is None:
                 raise ValueError("fitMod is missing")
+        self.configuration = conf_dict.copy()
         self.load_from_configuration()
 
     def load_from_configuration(self):
@@ -55,9 +56,9 @@ class DataConfiuration:
             self.configuration["fitMod"], LinearFuncSQ
         )
         try:
-            self.parameters_count = int(self.configuration["parameters_count"])
+            self.parameter_count = int(self.configuration["parameters_count"])
         except:
-            self.parameters_count = 0
+            self.parameter_count = 0
         self.name_definations = self.configuration["nameDefinations"]
         if type(self.name_definations) != dict:
             self.name_definations = {}
@@ -65,7 +66,8 @@ class DataConfiuration:
             self.name_definations.get("x-axis-label", "x"),
             self.name_definations.get("y-axis-label", "y")
         ]
-        self.parameter_names = [None for _ in range(self.parameters_count)]
+        self.parameter_names = [
+            f"a{idx}" for idx in range(self.parameter_count)]
         parameter_names_conf = self.name_definations.get("parameters", [])
         if type(parameter_names_conf) != list:
             parameter_names_conf = []
@@ -81,10 +83,29 @@ class DataConfiuration:
                 "y-axis-label": self.labels[1],
                 "parameters": self.parameter_names
             },
-            "parameters_count": self.parameters_count,
+            "parameters_count": self.parameter_count,
             "name": self.name
         }
         return result
+
+    def change_fit_mod(self, fitmod, parameter_count=None):
+        self.fit_object = fitmod
+        if fitmod.parameter_count == 0:
+            self.parameter_count = parameter_count or 1
+        else:
+            self.parameter_count = fitmod.parameter_count
+        self.parameter_names = [
+            f"a{idx}" for idx in range(self.parameter_count)]
+
+    def reduce_deg_for_poly(self):
+        self.parameter_count -= 1
+        self.parameter_names.pop()
+
+    def increase_deg_for_poly(self):
+        self.parameter_count += 1
+        self.parameter_names.append(
+            f"a{self.parameter_count-1}"
+        )
 
 
 default_configuration = DataConfiuration()
@@ -101,6 +122,20 @@ default_configuration.load_configration_content({
     "name": "速度时间图像"
 })
 
+default_configuration2 = DataConfiuration()
+default_configuration2.load_configration_content({
+    "fitMod": "fa5e3fcdb39bcd9157b809e3ca772214",
+    "nameDefinations": {
+        "x-axis-label": "I",
+        "y-axis-label": "E",
+        "parameters": [
+                        "-r", "E"
+        ]
+    },
+    "parameters_count": 2,
+    "name": "电池内阻电动势性质图像"
+})
+
 
 class FigureControl(object):
     fit: FitFunction
@@ -113,7 +148,7 @@ class FigureControl(object):
 
     def update_configuration(self, conf: DataConfiuration):
         self.configuration = conf
-        self.fit = self.configuration.fit_object()
+        self.fit: FitFunction = self.configuration.fit_object()
         self.parameters = [0 for _ in range(self.fit.parameter_count)]
 
     def first_run(self):
@@ -128,7 +163,7 @@ class FigureControl(object):
         x = np.array([i[0] for i in self.data])
         y = np.array([i[1] for i in self.data])
         print(type(self.fit))
-        x_range = np.linspace(min(x),max(x),100)
+        x_range = np.linspace(min(x), max(x), 100)
         y_fitted = self.fit.f(x_range)
         self.plot.clear()
         self.plot.plot(x, y, 'xr')
@@ -150,5 +185,6 @@ class GlobalVars:
             self.configurations.append(d)
         if len(self.configurations) == 0:
             self.configurations = [
-                default_configuration
+                default_configuration,
+                default_configuration2
             ]

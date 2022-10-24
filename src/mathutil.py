@@ -82,39 +82,39 @@ class PolyFit(FitFunction):
 
 
 class LinearFuncSQ(LeastSQFunction):
+    parameter_count = 2
     def __init__(self) -> None:
         def func(p, x):
             k, b = p
             return k * x + b
         self.fun = func
-        self.parameter_count = 2
 
 
 class QuadraticFuncSQ(LeastSQFunction):
+    parameter_count = 3
     def __init__(self) -> None:
         def func(p, x):
             a, b, c = p
             return a * x * x + b * x + c
         self.fun = func
-        self.parameter_count = 3
 
 
 class ExponentialFuncSQ(LeastSQFunction):
+    parameter_count = 1
     def __init__(self):
         def func(p, x):
             a = p[0]
             return a ** x
         self.fun = func
-        self.parameter_count = 1
 
 
 class InverseProportionalFunctionSQ(LeastSQFunction):
+    parameter_count = 1
     def __init__(self):
         def func(p, x):
             a = p[0]
             return a / x
         self.fun = func
-        self.parameter_count = 1
 
     def test(self, noise_rate=1):
         x = np.array([random.random() * 10 + 0.1 for _ in range(100)])
@@ -144,7 +144,11 @@ for key in unique_id:
     uid_inv[unique_id[key].__name__] = key
 
 if __name__ == "__main__":
-    inp = int(input("test type >> "))
+    import sys
+    if len(sys.argv) > 1:
+        inp = int(sys.argv[1])
+    else:
+        inp = int(input("test type >> "))
     if inp == 0:
         least_linar_func_obj = LinearFuncSQ()
         least_linar_func_obj.test()

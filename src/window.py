@@ -16,30 +16,36 @@ class InputWindow(tk.Tk):
         self.global_variables: GlobalVars = global_variables
         self.value = default
         self.promise_function = promise_function
+
         super().__init__()
+
         self.setup()
 
     def yield_promise(self, response, status=True):
         self.promise_function((response, status))
         self.destroy()
 
-    def do_submit(self,_=None):
+    def do_submit(self, _=None):
         self.yield_promise(self.input_var.get())
 
-    def do_cancel(self,_=None):
+    def do_cancel(self, _=None):
         self.yield_promise("", False)
 
     def setup(self):
         self.geometry("250x50")
         self.title("输入")
+
         self.input_var = tk.StringVar(master=self, value=self.value)
         self.input_box = tk.Entry(self, textvariable=self.input_var)
-        self.submit = tk.Button(self, text="确定", command=self.do_submit)
-        self.bind("<Return>",self.do_submit )
-        self.cancel = tk.Button(self, text="取消", command=self.do_cancel)
+        self.submit_button = tk.Button(self, text="确定", command=self.do_submit)
+        self.cancel_button = tk.Button(self, text="取消", command=self.do_cancel)
+
+        self.bind("<Return>", self.do_submit)
+
         self.input_box.place(x=10, y=10)
-        self.submit.place(x=160, y=5)
-        self.cancel.place(x=200, y=5)
+        self.submit_button.place(x=160, y=5)
+        self.cancel_button.place(x=200, y=5)
+
         self.lift()
 
 
@@ -71,24 +77,32 @@ class configurationParametersAliasArea(tk.Frame):
             self.list_var.set(self.list_raw)
 
     def update_all(self):
-        self.list_raw = []
-        for item in self.global_variables.editing_configuration.parameter_names:
-            self.list_raw.append(item)
+        self.list_raw = self.global_variables.editing_configuration.parameter_names[:]
         self.list_var.set(self.list_raw)
 
     def setup(self):
-        self.config(background="red", width=300, height=300)
-        self.listbox_label = tk.Label(self, text="参数名称编辑")
-        self.listbox = tk.Listbox(self, height=5)
+        self.config(width=300, height=300)
         self.list_raw = []
         self.list_var = tk.StringVar(master=self, value=self.list_raw)
-        for item in self.global_variables.editing_configuration.parameter_names:
-            self.list_raw.append(item)
+        self.list_raw = self.global_variables.editing_configuration.parameter_names[:]
         self.list_var.set(self.list_raw)
-        self.listbox.config(listvariable=self.list_var)
+
+        self.listbox_label = tk.Label(self, text="参数名称编辑")
+        self.listbox_frame = tk.Frame(self, width=200, height=200)
+        self.listbox = tk.Listbox(self.listbox_frame, height=5)
+        self.scroll_bar = ttk.Scrollbar(
+            self.listbox_frame, command=self.listbox.yview)
+
+        self.listbox.config(listvariable=self.list_var,
+                            yscrollcommand=self.scroll_bar.set)
         self.listbox.bind("<Double-1>", self.update_handle)
+
         self.listbox_label.place(x=10, y=10)
-        self.listbox.place(x=10, y=40)
+        self.listbox_frame.place(x=10, y=30)
+        self.listbox.grid(column=0, row=0, sticky=(tk.N, tk.W, tk.E, tk.S))
+        self.scroll_bar.grid(column=1, row=0, sticky=(tk.N, tk.S))
+        self.listbox_frame.grid_columnconfigure(0, weight=1)
+        self.listbox_frame.grid_rowconfigure(0, weight=1)
 
 
 class configurationFunctionArea(tk.Frame):
@@ -99,7 +113,7 @@ class configurationFunctionArea(tk.Frame):
         self.setup()
 
     def setup(self):
-        self.config(background="green", width=300, height=300)
+        self.config(width=300, height=250)
         self.x_label_label = tk.Label(self, text="x轴标签")
         self.y_label_label = tk.Label(self, text="y轴标签")
         self.x_label_var = tk.StringVar(
@@ -108,10 +122,12 @@ class configurationFunctionArea(tk.Frame):
             self, self.global_variables.editing_configuration.labels[1])
         self.x_label_input = tk.Entry(self, textvariable=self.x_label_var)
         self.y_label_input = tk.Entry(self, textvariable=self.y_label_var)
+
         self.x_label_label.place(x=10, y=10)
         self.y_label_label.place(x=10, y=40)
         self.x_label_input.place(x=110, y=10)
         self.y_label_input.place(x=110, y=40)
+
         self.extra()
 
     def extra(self):
@@ -135,16 +151,21 @@ class configurationFunctionPolyArea(configurationFunctionArea):
         self.parameters_control.update_all()
 
     def extra(self):
-        self.poly_deg_var = tk.IntVar(self,1)
-        self.poly_deg_label = tk.Label(self,textvariable=self.poly_deg_var)
-        self.left_button = tk.Button(self,text="降低维度",command=self.reduce_deg)
-        self.right_button = tk.Button(self,text="增加维度",command=self.increase_deg)
-        self.poly_deg_label.place(x=170,y=70)
-        self.left_button.place(x=100,y=65)
-        self.right_button.place(x=200,y=65)
+        self.poly_deg_var = tk.IntVar(self, 1)
+
+        self.poly_deg_label = tk.Label(self, textvariable=self.poly_deg_var)
+        self.left_button = tk.Button(
+            self, text="降低维度", command=self.reduce_deg)
+        self.right_button = tk.Button(
+            self, text="增加维度", command=self.increase_deg)
         self.parameters_control = configurationParametersAliasArea(
             self, self.global_variables)
+
+        self.poly_deg_label.place(x=170, y=70)
+        self.left_button.place(x=100, y=65)
+        self.right_button.place(x=200, y=65)
         self.parameters_control.place(x=0, y=100)
+
 
 class configurationFunctionSQArea(configurationFunctionArea):
     def __init__(self, parent, global_variables):
@@ -164,7 +185,7 @@ class ConfigurationWindow(tk.Tk):
 
     def setup(self):
         self.title("数据类型设置")
-        self.geometry("400x600")
+        self.geometry("300x400")
         editing: DataConfiuration = self.global_variables.editing_configuration
         self.name_label = tk.Label(self, text="名称")
         self.name_input = tk.Entry(self)
@@ -175,35 +196,42 @@ class ConfigurationWindow(tk.Tk):
             self, values=self.keys_list, state="readonly")
         self.fit_combobox.bind("<<ComboboxSelected>>",
                                self.update_function_area)
-        self.fit_combobox.current(self.keys_list.index(editing.fit_object.__name__))
+        self.fit_combobox.current(
+            self.keys_list.index(editing.fit_object.__name__))
+
+        self.submit_button = tk.Button(self, text="确定")
+        self.cancel_button = tk.Button(self, text="取消")
 
         if editing.fit_object == PolyFit:
             self.function_area = configurationFunctionPolyArea(
-            self, self.global_variables)
+                self, self.global_variables)
         else:
             self.function_area = configurationFunctionSQArea(
-            self, self.global_variables)
+                self, self.global_variables)
 
         self.name_label.place(x=10, y=10)
         self.name_input.place(x=110, y=10)
         self.fit_label.place(x=10, y=40)
         self.fit_combobox.place(x=110, y=40)
+        self.submit_button.place(x=200, y=350)
 
-    def update_function_area(self, eve):
+    def update_function_area(self, _):
         uid = uid_inv[self.keys_list[self.fit_combobox.current()]]
         self.function_area.destroy()
-        self.global_variables.editing_configuration.change_fit_mod(unique_id[uid],1)
+        self.global_variables.editing_configuration.change_fit_mod(
+            unique_id[uid], 1)
         if unique_id[uid] == PolyFit:
             self.function_area = configurationFunctionPolyArea(
-            self, self.global_variables)
+                self, self.global_variables)
         else:
             self.function_area = configurationFunctionSQArea(
-            self, self.global_variables)
-
+                self, self.global_variables)
 
 
 class ControlArea(tk.Frame):
     events = []
+    edting_index = -1
+
     def __init__(self, parent, global_variables):
         self.configuration_frame_flag = 0
         self.global_variables: GlobalVars = global_variables
@@ -224,12 +252,22 @@ class ControlArea(tk.Frame):
         self.combo_box.place(x=20, y=50)
         self.combo_box.bind("<<ComboboxSelected>>", self._eve_combo_box_change)
 
-        self.conf_button = tk.Button(self,text="编辑",command=self.do_conf)
-        self.conf_button.place(x=200,y=45)
+        self.conf_button = tk.Button(self, text="编辑", command=self.do_conf)
+        self.conf_button.place(x=200, y=45)
+
+    def submit_configuration_edition(self):
+        if self.edting_index == -1:
+            self.global_variables.configurations.append(
+                self.global_variables.editing_configuration
+            )
+        else:
+            self.global_variables.configurations[self.edting_index] = self.global_variables.editing_configuration
 
     def do_conf(self):
         idx = self.combo_box.current()
-        self.global_variables.editing_configuration = self.global_variables.configurations[idx]
+        self.edting_index = idx
+        self.global_variables.editing_configuration = self.global_variables.configurations[
+            idx]
         if self.configuration_frame_flag:
             return
         self.configuration_frame = ConfigurationWindow(
@@ -243,15 +281,15 @@ class ControlArea(tk.Frame):
             except:
                 self.configuration_frame_flag = 0
 
-
     def bind_events(self, events):
         self.events = events[:]
 
-    def _eve_combo_box_change(self, eve):
+    def _eve_combo_box_change(self, _):
         if self.configuration_frame_flag:
             return
         length = len(self.combo_box["value"])
         if (self.combo_box.current() + 1) == length:
+            self.edting_index = -1
             self.combo_box.current(0)
             self.configuration_frame = ConfigurationWindow(
                 self.global_variables)
@@ -283,7 +321,7 @@ class FigureArea(tk.Frame):
         self.canvas.draw()
         self.canvas.get_tk_widget().pack()
 
-    def change(self,conf):
+    def change(self, conf):
         self.figure_control.update_configuration(conf)
         self.figure_control.first_run()
         self.canvas.draw()

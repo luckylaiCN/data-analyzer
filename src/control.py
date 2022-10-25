@@ -26,20 +26,21 @@ class DataConfiuration:
     configuration = {
         "fitMode": "fa5e3fcdb39bcd9157b809e3ca772214",
         "nameDefinations": {
-            "x-axis-label": "t",
-            "y-axis-label": "v",
+            "x-axis-label": "x",
+            "y-axis-label": "y",
             "parameters": [
-                "a", "v0"
+                "a0", "a1"
             ]
         },
         "parameters_count": 2,
-        "name": "速度时间图像"
+        "name": "未命名"
     }
     parameter_count = 0
     fit_object = LinearFuncSQ
     labels = ["x", "y"]
     parameter_names = []
     name = "未命名"
+    deg = 1
 
     def __init__(self):
         pass
@@ -88,10 +89,11 @@ class DataConfiuration:
         }
         return result
 
-    def change_fit_mode(self, fitMode, parameter_count=None):
+    def change_fit_mode(self, fitMode, deg=None):
         self.fit_object = fitMode
         if fitMode.parameter_count == 0:
-            self.parameter_count = parameter_count or 1
+            self.deg = deg or 1
+            self.parameter_count = self.deg + 1
         else:
             self.parameter_count = fitMode.parameter_count
         self.parameter_names = [
@@ -99,10 +101,12 @@ class DataConfiuration:
 
     def reduce_deg_for_poly(self):
         self.parameter_count -= 1
+        self.deg -= 1
         self.parameter_names.pop()
 
     def increase_deg_for_poly(self):
         self.parameter_count += 1
+        self.deg += 1
         self.parameter_names.append(
             f"a{self.parameter_count-1}"
         )
@@ -143,6 +147,20 @@ default_configuration2.load_configuration_content({
     "name": "电池内阻电动势性质图像"
 })
 
+new_configuration = DataConfiuration()
+new_configuration.load_configuration_content({
+    "fitMode": "fa5e3fcdb39bcd9157b809e3ca772214",
+    "nameDefinations": {
+        "x-axis-label": "x",
+        "y-axis-label": "y",
+        "parameters": [
+            "a0", "a1"
+        ]
+    },
+    "parameters_count": 2,
+    "name": "未命名"
+})
+
 
 class FigureControl(object):
     fit: FitFunction
@@ -156,7 +174,7 @@ class FigureControl(object):
     def update_configuration(self, conf: DataConfiuration):
         self.configuration = conf
         if conf.fit_object == PolyFit:
-            self.fit: FitFunction = PolyFit(conf.parameter_count)
+            self.fit: FitFunction = PolyFit(conf.deg)
         else:
             self.fit: FitFunction = self.configuration.fit_object()
         self.parameters = [0 for _ in range(self.fit.parameter_count)]

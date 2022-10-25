@@ -10,18 +10,21 @@ def empty_promise(_):
     print(f"<Promise return> {_}")
     return
 
+
 class SubWindow(tk.Tk):
     events = []
+
     def __init__(self, global_variables):
         self.global_variables: GlobalVars = global_variables
         super().__init__()
         self.setup()
 
     def setup(self):
-        raise NotImplementedError("TkModule not implemented.") 
+        raise NotImplementedError("TkModule Not Implemented.")
 
-    def bind_events(self,events):
+    def bind_events(self, events):
         self.events = events[:]
+
 
 class InputWindow(tk.Tk):
     def __init__(self, global_variables, default="", promise_function=empty_promise):
@@ -48,9 +51,11 @@ class InputWindow(tk.Tk):
         self.title("输入")
 
         self.input_var = tk.StringVar(master=self, value=self.value)
-        self.input_box = ttk.Entry(self, textvariable=self.input_var,width=24)
-        self.submit_button = ttk.Button(self, text="确定", command=self.do_submit)
-        self.cancel_button = ttk.Button(self, text="取消", command=self.do_cancel)
+        self.input_box = ttk.Entry(self, textvariable=self.input_var, width=24)
+        self.submit_button = ttk.Button(
+            self, text="确定", command=self.do_submit)
+        self.cancel_button = ttk.Button(
+            self, text="取消", command=self.do_cancel)
 
         self.bind("<Return>", self.do_submit)
 
@@ -61,7 +66,7 @@ class InputWindow(tk.Tk):
         self.lift()
 
 
-class configurationParametersAliasArea(tk.Frame):
+class ConfigurationParametersAliasArea(tk.Frame):
     def __init__(self, parent, global_variables):
         self.global_variables: GlobalVars = global_variables
         self.promised = True
@@ -117,7 +122,7 @@ class configurationParametersAliasArea(tk.Frame):
         self.listbox_frame.grid_rowconfigure(0, weight=1)
 
 
-class configurationFunctionArea(tk.Frame):
+class ConfigurationFunctionArea(tk.Frame):
     def __init__(self, parent, global_variables):
         self.global_variables: GlobalVars = global_variables
         super().__init__(parent)
@@ -144,10 +149,10 @@ class configurationFunctionArea(tk.Frame):
 
     def extra(self):
         raise NotImplementedError(
-            "configurationFunctionArea.extra not implemented.")
+            "configurationFunctionArea.extra Not Implemented.")
 
 
-class configurationFunctionPolyArea(configurationFunctionArea):
+class ConfigurationFunctionPolyArea(ConfigurationFunctionArea):
     def __init__(self, parent, global_variables):
         super().__init__(parent, global_variables)
 
@@ -163,14 +168,15 @@ class configurationFunctionPolyArea(configurationFunctionArea):
         self.parameters_control.update_all()
 
     def extra(self):
-        self.poly_deg_var = tk.IntVar(self, self.global_variables.editing_configuration.parameter_count)
+        self.poly_deg_var = tk.IntVar(
+            self, self.global_variables.editing_configuration.deg)
 
         self.poly_deg_label = tk.Label(self, textvariable=self.poly_deg_var)
         self.left_button = ttk.Button(
             self, text="降低维度", command=self.reduce_deg)
         self.right_button = ttk.Button(
             self, text="增加维度", command=self.increase_deg)
-        self.parameters_control = configurationParametersAliasArea(
+        self.parameters_control = ConfigurationParametersAliasArea(
             self, self.global_variables)
 
         self.poly_deg_label.place(x=140, y=70)
@@ -179,12 +185,12 @@ class configurationFunctionPolyArea(configurationFunctionArea):
         self.parameters_control.place(x=0, y=100)
 
 
-class configurationFunctionSQArea(configurationFunctionArea):
+class ConfigurationFunctionSQArea(ConfigurationFunctionArea):
     def __init__(self, parent, global_variables):
         super().__init__(parent, global_variables)
 
     def extra(self):
-        self.parameters_control = configurationParametersAliasArea(
+        self.parameters_control = ConfigurationParametersAliasArea(
             self, self.global_variables)
         self.parameters_control.place(x=0, y=100)
 
@@ -197,22 +203,24 @@ class ConfigurationWindow(SubWindow):
         self.title("数据类型设置")
         self.geometry("300x400")
         editing: DataConfiuration = self.global_variables.editing_configuration
-        self.name_var = StringVar(self,editing.name)
+        self.name_var = StringVar(self, editing.name)
         self.keys_list = list(uid_inv.keys())
 
         self.name_label = tk.Label(self, text="名称")
-        self.name_input = ttk.Entry(self,textvariable=self.name_var)
+        self.name_input = ttk.Entry(self, textvariable=self.name_var)
         self.fit_label = tk.Label(self, text="拟合函数类型")
         self.fit_combobox = ttk.Combobox(
             self, values=self.keys_list, state="readonly")
-        self.submit_button = ttk.Button(self, text="确定",command=self.submit_change)
-        self.cancel_button = ttk.Button(self, text="取消",command=self.discard_change)
+        self.submit_button = ttk.Button(
+            self, text="确定", command=self.submit_change)
+        self.cancel_button = ttk.Button(
+            self, text="取消", command=self.discard_change)
 
         if editing.fit_object == PolyFit:
-            self.function_area = configurationFunctionPolyArea(
+            self.function_area = ConfigurationFunctionPolyArea(
                 self, self.global_variables)
         else:
-            self.function_area = configurationFunctionSQArea(
+            self.function_area = ConfigurationFunctionSQArea(
                 self, self.global_variables)
 
         self.fit_combobox.bind("<<ComboboxSelected>>",
@@ -233,10 +241,10 @@ class ConfigurationWindow(SubWindow):
         self.global_variables.editing_configuration.change_fit_mode(
             unique_id[uid], 1)
         if unique_id[uid] == PolyFit:
-            self.function_area = configurationFunctionPolyArea(
+            self.function_area = ConfigurationFunctionPolyArea(
                 self, self.global_variables)
         else:
-            self.function_area = configurationFunctionSQArea(
+            self.function_area = ConfigurationFunctionSQArea(
                 self, self.global_variables)
 
     def discard_change(self):
@@ -244,7 +252,8 @@ class ConfigurationWindow(SubWindow):
 
     def submit_change(self):
         self.global_variables.editing_configuration.name = self.name_var.get()
-        self.global_variables.editing_configuration.parameter_names = self.function_area.parameters_control.list_raw[:]
+        self.global_variables.editing_configuration.parameter_names = self.function_area.parameters_control.list_raw[
+            :]
         self.global_variables.editing_configuration.labels = [
             self.function_area.x_label_var.get(),
             self.function_area.y_label_var.get()
@@ -263,10 +272,11 @@ class DataWindow(SubWindow):
         super().__init__(global_variables)
 
     def setup(self):
-        pass 
+        pass
 
-    def bind_events(self,events):
+    def bind_events(self, events):
         self.events = events[:]
+
 
 class ControlArea(tk.Frame):
     events = []
@@ -283,14 +293,14 @@ class ControlArea(tk.Frame):
         all_confs = [i.name for i in self.global_variables.configurations]
 
         self.combo_box_label = tk.Label(self, text="数据类型")
-        
+
         self.combo_box = ttk.Combobox(self, width=20)
         self.conf_button = ttk.Button(self, text="编辑", command=self.do_conf)
 
         self.combo_box.config(
             values=(all_confs + ["新建数据类型"]), state="readonly")
         self.combo_box.current(0)
-        self.combo_box.bind("<<ComboboxSelected>>", self._eve_combo_box_change)
+        self.combo_box.bind("<<ComboboxSelected>>", self.on_combo_box_change)
         self.combo_box_label.place(x=20, y=20)
         self.combo_box.place(x=20, y=50)
         self.conf_button.place(x=200, y=50)
@@ -299,8 +309,6 @@ class ControlArea(tk.Frame):
         all_confs = [i.name for i in self.global_variables.configurations]
         self.combo_box.config(
             values=(all_confs + ["新建数据类型"]), state="readonly")
-        self.combo_box.current(0)
-
 
     def do_conf(self):
         idx = self.combo_box.current()
@@ -320,18 +328,19 @@ class ControlArea(tk.Frame):
             except:
                 self.configuration_frame_flag = 0
         self.update_all()
+        self.combo_box.current(idx)
 
     def bind_events(self, events):
         self.events = events[:]
 
-    def _eve_combo_box_change(self, _):
+    def on_combo_box_change(self, _):
         if self.configuration_frame_flag:
             return
         length = len(self.combo_box["value"])
         if (self.combo_box.current() + 1) == length:
             self.global_variables.editing_index = -1
             self.combo_box.current(0)
-            self.global_variables.editing_configuration = default_configuration.copy()
+            self.global_variables.editing_configuration = new_configuration.copy()
             self.configuration_frame = ConfigurationWindow(
                 self.global_variables)
             self.configuration_frame_flag = 1
@@ -346,7 +355,6 @@ class ControlArea(tk.Frame):
         else:
             idx = self.combo_box.current()
             self.events[0](self.global_variables.configurations[idx])
-       
 
 
 class FigureArea(tk.Frame):
@@ -390,6 +398,8 @@ class App(tk.Tk):
         control.bind_events([
             figure.change
         ])
+
+        self.lift()
 
 
 if __name__ == "__main__":

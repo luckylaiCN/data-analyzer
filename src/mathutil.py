@@ -36,7 +36,7 @@ class LeastSQFunction(FitFunction):
         init_para = [random.random() for _ in range(self.parameter_count)]
         best_parameters = leastsq(
             self.error, init_para, args=(input_x, input_y))
-        self.best_parameters = best_parameters[:][0]
+        self.best_parameters = best_parameters[0]
 
     def f(self, x):
         return self.fun(self.best_parameters, x)
@@ -83,6 +83,7 @@ class PolyFit(FitFunction):
 
 class LinearFuncSQ(LeastSQFunction):
     parameter_count = 2
+
     def __init__(self) -> None:
         def func(p, x):
             k, b = p
@@ -92,6 +93,7 @@ class LinearFuncSQ(LeastSQFunction):
 
 class QuadraticFuncSQ(LeastSQFunction):
     parameter_count = 3
+
     def __init__(self) -> None:
         def func(p, x):
             a, b, c = p
@@ -101,15 +103,29 @@ class QuadraticFuncSQ(LeastSQFunction):
 
 class ExponentialFuncSQ(LeastSQFunction):
     parameter_count = 1
+
     def __init__(self):
         def func(p, x):
             a = p[0]
             return a ** x
         self.fun = func
 
+    def test(self, noise_rate=1):
+        x = np.linspace(-1, 10, 100)
+        raw_p = [np.abs(random.random()) * 1.5]
+        noise = np.random.randn(len(x))
+        y = self.fun(raw_p, x) + noise * noise_rate
+        self.do_fit(x, y)
+        y_fitted = self.f(x)
+        plt.plot(x, y, 'xr', label='Original')
+        plt.plot(x, y_fitted, '-b', label='Fitted')
+        plt.legend()
+        plt.show()
+
 
 class InverseProportionalFunctionSQ(LeastSQFunction):
     parameter_count = 1
+
     def __init__(self):
         def func(p, x):
             a = p[0]
@@ -123,7 +139,7 @@ class InverseProportionalFunctionSQ(LeastSQFunction):
         noise = np.random.randn(len(x))
         y = self.fun(raw_p, x) + noise * noise_rate
         self.do_fit(x, y)
-        x_range = np.linspace(min(x),max(x),100)
+        x_range = np.linspace(min(x), max(x), 100)
         y_fitted = self.f(x_range)
         plt.plot(x, y, 'xr', label='Original')
         plt.plot(x_range, y_fitted, '-b', label='Fitted')
@@ -163,19 +179,7 @@ if __name__ == "__main__":
         poly_quaratic_func_obj.test(100)
     elif inp == 4:
         least_exp_func_obj = ExponentialFuncSQ()
-        x = np.linspace(-1, 10, 100)
-        raw_p = [np.abs(random.random()) * 1.5]
-        print(raw_p)
-        noise = np.random.randn(len(x))
-        noise_rate = raw_p[0]
-        y = least_exp_func_obj.fun(raw_p, x) + noise * noise_rate
-        least_exp_func_obj.do_fit(x, y)
-        y_fitted = least_exp_func_obj.f(x)
-        print(least_exp_func_obj.best_parameters)
-        plt.plot(x, y, 'xr', label='Original')
-        plt.plot(x, y_fitted, '-b', label='Fitted')
-        plt.legend()
-        plt.show()
+        least_exp_func_obj.test()
     elif inp == 5:
         print(unique_id, uid_inv)
     elif inp == 6:

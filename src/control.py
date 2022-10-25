@@ -24,7 +24,7 @@ def json_write(filepath, obj):
 
 class DataConfiuration:
     configuration = {
-        "fitMod": "fa5e3fcdb39bcd9157b809e3ca772214",
+        "fitMode": "fa5e3fcdb39bcd9157b809e3ca772214",
         "nameDefinations": {
             "x-axis-label": "t",
             "y-axis-label": "v",
@@ -44,16 +44,16 @@ class DataConfiuration:
     def __init__(self):
         pass
 
-    def load_configration_content(self, conf_dict: dict):
+    def load_configuration_content(self, conf_dict: dict):
         if type(conf_dict) == dict:
-            if conf_dict.get("fitMod") is None:
-                raise ValueError("fitMod is missing")
+            if conf_dict.get("fitMode") is None:
+                raise ValueError("fitMode is missing")
         self.configuration = conf_dict.copy()
         self.load_from_configuration()
 
     def load_from_configuration(self):
         self.fit_object = unique_id.get(
-            self.configuration["fitMod"], LinearFuncSQ
+            self.configuration["fitMode"], LinearFuncSQ
         )
         try:
             self.parameter_count = int(self.configuration["parameters_count"])
@@ -77,7 +77,7 @@ class DataConfiuration:
 
     def save_to_configuration(self):
         result = {
-            "fitMod": uid_inv[self.fit_object.__name__],
+            "fitMode": uid_inv[self.fit_object.__name__],
             "nameDefinations": {
                 "x-axis-label": self.labels[0],
                 "y-axis-label": self.labels[1],
@@ -88,12 +88,12 @@ class DataConfiuration:
         }
         return result
 
-    def change_fit_mod(self, fitmod, parameter_count=None):
-        self.fit_object = fitmod
-        if fitmod.parameter_count == 0:
+    def change_fit_mode(self, fitMode, parameter_count=None):
+        self.fit_object = fitMode
+        if fitMode.parameter_count == 0:
             self.parameter_count = parameter_count or 1
         else:
-            self.parameter_count = fitmod.parameter_count
+            self.parameter_count = fitMode.parameter_count
         self.parameter_names = [
             f"a{idx}" for idx in range(self.parameter_count)]
 
@@ -107,10 +107,17 @@ class DataConfiuration:
             f"a{self.parameter_count-1}"
         )
 
+    def copy(self):
+        new = DataConfiuration()
+        new.load_configuration_content(
+            self.save_to_configuration()
+        )
+        return new
+
 
 default_configuration = DataConfiuration()
-default_configuration.load_configration_content({
-    "fitMod": "fa5e3fcdb39bcd9157b809e3ca772214",
+default_configuration.load_configuration_content({
+    "fitMode": "fa5e3fcdb39bcd9157b809e3ca772214",
     "nameDefinations": {
         "x-axis-label": "t",
         "y-axis-label": "v",
@@ -123,8 +130,8 @@ default_configuration.load_configration_content({
 })
 
 default_configuration2 = DataConfiuration()
-default_configuration2.load_configration_content({
-    "fitMod": "fa5e3fcdb39bcd9157b809e3ca772214",
+default_configuration2.load_configuration_content({
+    "fitMode": "fa5e3fcdb39bcd9157b809e3ca772214",
     "nameDefinations": {
         "x-axis-label": "I",
         "y-axis-label": "E",
@@ -148,7 +155,10 @@ class FigureControl(object):
 
     def update_configuration(self, conf: DataConfiuration):
         self.configuration = conf
-        self.fit: FitFunction = self.configuration.fit_object()
+        if conf.fit_object == PolyFit:
+            self.fit: FitFunction = PolyFit(conf.parameter_count)
+        else:
+            self.fit: FitFunction = self.configuration.fit_object()
         self.parameters = [0 for _ in range(self.fit.parameter_count)]
 
     def first_run(self):
@@ -175,16 +185,17 @@ class FigureControl(object):
 class GlobalVars:
     input_set = []
     configurations = []
-    editing_configuration = default_configuration
+    editing_configuration = default_configuration.copy()
+    editing_index = -1
 
     def __init__(self):
         configurations_json = json_read(".config") or []
         for item in configurations_json:
             d = DataConfiuration()
-            d.load_configration_content(item)
+            d.load_configuration_content(item)
             self.configurations.append(d)
         if len(self.configurations) == 0:
             self.configurations = [
-                default_configuration,
-                default_configuration2
+                default_configuration.copy(),
+                default_configuration2.copy()
             ]

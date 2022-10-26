@@ -2,7 +2,7 @@ from src.control import *
 from src.mathutil import *
 
 import tkinter as tk
-from tkinter import StringVar, ttk
+from tkinter import ttk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 
@@ -20,7 +20,7 @@ class SubWindow(tk.Tk):
         self.setup()
 
     def setup(self):
-        raise NotImplementedError("TkModule Not Implemented.")
+        raise NotImplementedError("SubWindow Not Implemented.")
 
     def bind_events(self, events):
         self.events = events[:]
@@ -203,7 +203,7 @@ class ConfigurationWindow(SubWindow):
         self.title("数据类型设置")
         self.geometry("300x400")
         editing: DataConfiuration = self.global_variables.editing_configuration
-        self.name_var = StringVar(self, editing.name)
+        self.name_var = tk.StringVar(self, editing.name)
         self.keys_list = list(uid_inv.keys())
 
         self.name_label = tk.Label(self, text="名称")
@@ -264,15 +264,48 @@ class ConfigurationWindow(SubWindow):
             )
         else:
             self.global_variables.configurations[self.global_variables.editing_index] = self.global_variables.editing_configuration
-        self.destroy()
+        self.destruoy()
+class DataInputArea(tk.Frame):
+    def __init__(self, parent, global_variables):
+        self.global_variables: GlobalVars = global_variables
+        super().__init__(parent)
+        self.place(x=410, y=40)
+        self.setup()
 
+    def setup(self):
+        self.config(background="red",height=240,width=160)
+
+class DataListBoxArea(tk.Frame):
+    def __init__(self, parent, global_variables):
+        self.global_variables: GlobalVars = global_variables
+        super().__init__(parent)
+        self.place(x=10, y=40)
+        self.setup()
+
+    def setup(self):
+        self.config(background="red",height=250,width=400)
+        self.data_raw = []
+        self.data_var = tk.StringVar(self,self.data_raw)
+        self.data_listbox = tk.Listbox(self,listvariable=self.data_var,width=50,height=13)
+        self.scroll_bar = ttk.Scrollbar(self,command=self.data_listbox.yview)
+        self.data_listbox.config(yscrollcommand=self.scroll_bar.set)
+        self.data_listbox.grid(column=0, row=0, sticky=(tk.N, tk.W, tk.E, tk.S))
+        self.scroll_bar.grid(column=1, row=0, sticky=(tk.N, tk.S))
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1)
 
 class DataWindow(SubWindow):
     def __init__(self, global_variables):
         super().__init__(global_variables)
 
     def setup(self):
-        pass
+        self.geometry("600x300")
+        self.title("编辑数据")
+        self.edition_label = tk.Label(self,text="实验数据")
+        self.edition_listbox_frame = DataListBoxArea(self,self.global_variables)
+        self.edition_input_frame = DataInputArea(self,self.global_variables)
+
+        self.edition_label.place(x=10,y=10)
 
     def bind_events(self, events):
         self.events = events[:]
@@ -280,9 +313,10 @@ class DataWindow(SubWindow):
 
 class ControlArea(tk.Frame):
     events = []
+    data_window_flag = 0
+    configuration_window_flag = 0
 
     def __init__(self, parent, global_variables):
-        self.configuration_frame_flag = 0
         self.global_variables: GlobalVars = global_variables
         super().__init__(parent)
         self.place(x=0, y=0)
@@ -293,9 +327,11 @@ class ControlArea(tk.Frame):
         all_confs = [i.name for i in self.global_variables.configurations]
 
         self.combo_box_label = tk.Label(self, text="数据类型")
-
         self.combo_box = ttk.Combobox(self, width=20)
         self.conf_button = ttk.Button(self, text="编辑", command=self.do_conf)
+        self.data_label = tk.Label(self, text="实验数据")
+        self.data_button = ttk.Button(
+            self, text="编辑数据", command=self.create_data_window)
 
         self.combo_box.config(
             values=(all_confs + ["新建数据类型"]), state="readonly")
@@ -304,6 +340,23 @@ class ControlArea(tk.Frame):
         self.combo_box_label.place(x=20, y=20)
         self.combo_box.place(x=20, y=50)
         self.conf_button.place(x=200, y=50)
+        self.data_label.place(x=400, y=20)
+        self.data_button.place(x=400, y=50)
+
+    def create_data_window(self):
+        if self.data_window_flag:
+            return
+        self.data_window_flag = 1
+
+        self.data_window = DataWindow(self.global_variables)
+
+        while self.data_window_flag:
+            self.data_window.update()
+            try:
+                if not self.data_window.winfo_exists():
+                    self.data_window_flag = 0
+            except:
+                self.data_window_flag = 0
 
     def update_all(self):
         all_confs = [i.name for i in self.global_variables.configurations]
@@ -315,18 +368,18 @@ class ControlArea(tk.Frame):
         self.global_variables.editing_index = idx
         self.global_variables.editing_configuration = self.global_variables.configurations[
             idx]
-        if self.configuration_frame_flag:
+        if self.configuration_window_flag:
             return
-        self.configuration_frame = ConfigurationWindow(
+        self.configuration_window = ConfigurationWindow(
             self.global_variables)
-        self.configuration_frame_flag = 1
-        while self.configuration_frame_flag:
-            self.configuration_frame.update()
+        self.configuration_window_flag = 1
+        while self.configuration_window_flag:
+            self.configuration_window.update()
             try:
-                if not self.configuration_frame.winfo_exists():
-                    self.configuration_frame_flag = 0
+                if not self.configuration_window.winfo_exists():
+                    self.configuration_window_flag = 0
             except:
-                self.configuration_frame_flag = 0
+                self.configuration_window_flag = 0
         self.update_all()
         self.combo_box.current(idx)
 
@@ -334,23 +387,23 @@ class ControlArea(tk.Frame):
         self.events = events[:]
 
     def on_combo_box_change(self, _):
-        if self.configuration_frame_flag:
+        if self.configuration_window_flag:
             return
         length = len(self.combo_box["value"])
         if (self.combo_box.current() + 1) == length:
             self.global_variables.editing_index = -1
             self.combo_box.current(0)
             self.global_variables.editing_configuration = new_configuration.copy()
-            self.configuration_frame = ConfigurationWindow(
+            self.configuration_window = ConfigurationWindow(
                 self.global_variables)
-            self.configuration_frame_flag = 1
-            while self.configuration_frame_flag:
-                self.configuration_frame.update()
+            self.configuration_window_flag = 1
+            while self.configuration_window_flag:
+                self.configuration_window.update()
                 try:
-                    if not self.configuration_frame.winfo_exists():
-                        self.configuration_frame_flag = 0
+                    if not self.configuration_window.winfo_exists():
+                        self.configuration_window_flag = 0
                 except:
-                    self.configuration_frame_flag = 0
+                    self.configuration_window_flag = 0
             self.update_all()
         else:
             idx = self.combo_box.current()

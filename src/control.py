@@ -205,6 +205,8 @@ class GlobalVars:
     configurations = []
     editing_configuration = default_configuration.copy()
     editing_index = -1
+    using_index = 0
+    data = []
 
     def __init__(self):
         configurations_json = json_read(".config") or []

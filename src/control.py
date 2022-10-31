@@ -190,8 +190,8 @@ class FigureControl(object):
             return
         x = np.array([i[0] for i in self.data])
         y = np.array([i[1] for i in self.data])
-        print(type(self.fit))
         x_range = np.linspace(min(x), max(x), 100)
+        self.fit.do_fit(x,y)
         y_fitted = self.fit.f(x_range)
         self.plot.clear()
         self.plot.plot(x, y, 'xr')

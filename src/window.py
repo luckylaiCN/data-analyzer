@@ -264,7 +264,7 @@ class ConfigurationWindow(SubWindow):
             )
         else:
             self.global_variables.configurations[self.global_variables.editing_index] = self.global_variables.editing_configuration
-        self.destruoy()
+        self.destroy()
 
 
 class DataInputArea(tk.Frame):
@@ -276,9 +276,15 @@ class DataInputArea(tk.Frame):
 
     def __init__(self, parent, global_variables):
         self.global_variables: GlobalVars = global_variables
+        self.data = self.global_variables.data[:]
         super().__init__(parent)
         self.place(x=410, y=40)
         self.setup()
+
+    def fix_focus(self, _=None):
+        if self.data_index == -1:
+            return
+        self.events[1](self.data_index)
 
     def get_xy(self):
         x = 0
@@ -318,23 +324,63 @@ class DataInputArea(tk.Frame):
             item.config(state="disabled")
 
     def go_to_next(self):
-        # no update requirements for listbox
         if len(self.data) == self.data_index + 1:
             self.data.append((0, 0))
         self.data_index += 1
+        self.events[0]()
+        self.events[1](self.data_index)
+        self.update_to_index(self.data_index)
 
     def update_to_index(self, index):
         self.data_index = index
         self.activate()
         self.x_var.set(str(self.data[index][0]))
         self.y_var.set(str(self.data[index][1]))
-        print("call")
+
+    def save_and_deactivate(self):
+        self.save_index()
+        self.deactivate()
+
+    def save_and_next(self):
+        if self.data_index == -1:
+            return
+        self.save_index()
+        self.go_to_next()
+        self.events[0]()
+
+    def delete_index(self):
+        if self.data_index == -1:
+            return
+
+        self.data.pop(self.data_index)
+        self.data_index = min(self.data_index, len(self.data) - 1)
+        self.events[0]()
+        if self.data_index == -1:
+            self.deactivate()
+            return
+
+        self.events[1](self.data_index)
 
     def bind_events(self, events):
+        # event 0 : update listbox
+        # event 1 : set listbox cur
+        # event 2 : get listbox cur
         self.events = events[:]
 
+    def enter_event(self, _=None):
+        if self.activated:
+            self.save_and_next()
+            self.x_input.focus()
+            self.x_input.selection_range(0, "end")
+
+    def submit_all(self):
+        self.events[3]()
+
+    def discard_all(self):
+        self.events[4]()
+
     def setup(self):
-        self.config(background="red", height=240, width=160)
+        self.config(height=240, width=160)
         using_configuration = self.global_variables.configurations[
             self.global_variables.using_index]
         self.data = self.global_variables.data[:]
@@ -349,11 +395,20 @@ class DataInputArea(tk.Frame):
             self, textvariable=self.y_var, state="disabled")
 
         self.append_button = ttk.Button(
-            self, text="新建", command=self.append_to_end)
+            self, text="新建空数据", command=self.append_to_end, takefocus=False)
         self.save_and_next_button = ttk.Button(
-            self, text="保存并下一个", state="disabled")
-        self.submit_button = ttk.Button(self, text="保存", state="disabled")
-        self.delete_button = ttk.Button(self, text="删除", state="disabled")
+            self, text="保存并下一个", state="disabled", command=self.save_and_next, takefocus=False)
+        self.submit_button = ttk.Button(
+            self, text="保存本条", state="disabled", command=self.save_and_deactivate, takefocus=False)
+        self.delete_button = ttk.Button(
+            self, text="删除本条", state="disabled", command=self.delete_index, takefocus=False)
+        self.submit_all_button = ttk.Button(
+            self, text="保存所有数据", command=self.submit_all, takefocus=False)
+        self.discard_all_button = ttk.Button(
+            self, text="放弃所有更改", command=self.discard_all, takefocus=False)
+
+        self.x_input.bind("<1>", self.fix_focus)
+        self.y_input.bind("<1>", self.fix_focus)
 
         self.stated = [
             self.x_input, self.y_input, self.save_and_next_button, self.submit_button, self.delete_button
@@ -367,6 +422,8 @@ class DataInputArea(tk.Frame):
         self.append_button.place(x=0, y=100)
         self.submit_button.place(x=0, y=130)
         self.delete_button.place(x=0, y=160)
+        self.submit_all_button.place(x=0, y=190)
+        self.discard_all_button.place(x=0, y=220)
 
 
 class DataListBoxArea(tk.Frame):
@@ -380,9 +437,18 @@ class DataListBoxArea(tk.Frame):
 
     def update_list(self):
         self.data_raw = []
+        idx = -1
+        idxs = self.data_listbox.curselection()
+        if len(idxs) == 1:
+            idx = int(idxs[0])
+        idx0 = 0
         for d in self.events[1]:
             x, y = d
-            self.data_raw.append("(%.4f,%.4f)" %(x,y))
+            if idx == idx0:
+                self.data_raw.append("(%.4f,%.4f) - Editing" % (x, y))
+            else:
+                self.data_raw.append("(%.4f,%.4f)" % (x, y))
+            idx0 += 1
         self.data_var.set(self.data_raw)
 
     def handle_change(self, _=None):
@@ -390,6 +456,14 @@ class DataListBoxArea(tk.Frame):
         if len(idxs) == 1:
             idx = int(idxs[0])
             self.events[0](idx)
+            self.update_list()
+
+    def get_index(self):
+        idxs = self.data_listbox.curselection()
+        if len(idxs) == 1:
+            idx = int(idxs[0])
+            return idx
+        return -1
 
     def setup(self):
         self.config(background="red", height=250, width=400)
@@ -398,14 +472,22 @@ class DataListBoxArea(tk.Frame):
         self.data_listbox = tk.Listbox(
             self, listvariable=self.data_var, width=50, height=13)
         self.scroll_bar = ttk.Scrollbar(self, command=self.data_listbox.yview)
-        self.data_listbox.config(yscrollcommand=self.scroll_bar.set)
-        self.data_listbox.bind("<Double-1>",self.handle_change)
+        self.data_listbox.config(
+            yscrollcommand=self.scroll_bar.set, takefocus=False)
+        self.data_listbox.bind("<Double-1>", self.handle_change)
 
         self.data_listbox.grid(
             column=0, row=0, sticky=(tk.N, tk.W, tk.E, tk.S))
         self.scroll_bar.grid(column=1, row=0, sticky=(tk.N, tk.S))
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
+
+    def set_cur(self, index):
+        self.update_list()
+        self.data_listbox.select_clear(0, "end")
+        self.data_listbox.selection_set(index)
+        self.data_listbox.see(index)
+        
 
     def bind_events(self, events):
         self.events = events[:]
@@ -424,11 +506,18 @@ class DataWindow(SubWindow):
         self.edition_input_frame = DataInputArea(self, self.global_variables)
 
         self.edition_listbox_frame.bind_events(
-            [self.edition_input_frame.update_to_index,self.edition_input_frame.data])
+            [self.edition_input_frame.update_to_index, self.edition_input_frame.data])
         self.edition_input_frame.bind_events(
-            [self.edition_listbox_frame.update_list])
+            [self.edition_listbox_frame.update_list, self.edition_listbox_frame.set_cur, self.edition_listbox_frame.get_index,self.submit,self.destroy])
+        self.bind("<Return>", self.edition_input_frame.enter_event)
+        self.edition_listbox_frame.update_list()
 
         self.edition_label.place(x=10, y=10)
+
+    def submit(self):
+        self.global_variables.data = self.edition_input_frame.data[:]
+        self.events[0]()
+        self.destroy()
 
     def bind_events(self, events):
         self.events = events[:]
@@ -446,7 +535,7 @@ class ControlArea(tk.Frame):
         self.setup()
 
     def setup(self):
-        self.config(background="red", width=800, height=100)
+        self.config(width=800, height=100)
         all_confs = [i.name for i in self.global_variables.configurations]
 
         self.combo_box_label = tk.Label(self, text="数据类型")
@@ -472,6 +561,7 @@ class ControlArea(tk.Frame):
         self.data_window_flag = 1
 
         self.data_window = DataWindow(self.global_variables)
+        self.data_window.bind_events([self.events[1]])
 
         while self.data_window_flag:
             self.data_window.update()
@@ -536,7 +626,7 @@ class ControlArea(tk.Frame):
 
 class FigureArea(tk.Frame):
     def __init__(self, parent, global_variables):
-        self.global_variables = global_variables
+        self.global_variables : GlobalVars = global_variables
         super().__init__(parent)
         self.place(x=0, y=100)
         self.setup()
@@ -555,6 +645,7 @@ class FigureArea(tk.Frame):
         self.canvas.draw()
 
     def update(self):
+        self.figure_control.data = self.global_variables.data[:]
         self.figure_control.update()
         self.canvas.draw()
 
@@ -573,7 +664,7 @@ class App(tk.Tk):
         figure = FigureArea(self, self.global_variables)
 
         control.bind_events([
-            figure.change
+            figure.change,figure.update
         ])
 
         self.lift()

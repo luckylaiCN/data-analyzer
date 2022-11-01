@@ -138,7 +138,7 @@ default_configuration2.load_configuration_content({
     "fitMode": "fa5e3fcdb39bcd9157b809e3ca772214",
     "nameDefinations": {
         "x-axis-label": "I",
-        "y-axis-label": "E",
+        "y-axis-label": "U",
         "parameters": [
                         "-r", "E"
         ]
@@ -164,6 +164,7 @@ new_configuration.load_configuration_content({
 
 class FigureControl(object):
     fit: FitFunction
+    events = []
 
     def __init__(self):
         self.figure = Figure()
@@ -186,18 +187,30 @@ class FigureControl(object):
 
     def update(self):
         if len(self.data) < self.fit.parameter_count:
-            print("More data required")  # todo : event handle
+            self.raise_error(f"拟合所需要的数据量不足。请输入至少{self.fit.parameter_count}项数据")
             return
         x = np.array([i[0] for i in self.data])
         y = np.array([i[1] for i in self.data])
-        x_range = np.linspace(min(x), max(x), 100)
-        self.fit.do_fit(x,y)
-        y_fitted = self.fit.f(x_range)
+        x_range = np.linspace(min(min(x),0), max(x), 100) # 因为神奇的要求把x压到0去
+        try:
+            self.fit.do_fit(x,y)
+            y_fitted = self.fit.f(x_range)
+        except Exception as e:
+            self.raise_error(f"Exception Caught:\n{e}")
+            return
+        
         self.plot.clear()
         self.plot.plot(x, y, 'xr')
         self.plot.plot(x_range, y_fitted, '-b')
         self.plot.set_xlabel(self.configuration.labels[0])
         self.plot.set_ylabel(self.configuration.labels[1])
+        self.plot.grid(axis="both")
+
+    def raise_error(self,message):
+        self.events[0](message)
+
+    def bind_events(self,events):
+        self.events = events[:]
 
 
 class GlobalVars:
@@ -219,3 +232,10 @@ class GlobalVars:
                 default_configuration.copy(),
                 default_configuration2.copy()
             ]
+
+    def save_config(self):
+        configurations_json = []
+        for item in self.configurations:
+            configurations_json.append(item.save_to_configuration())
+
+        json_write(".config",configurations_json)

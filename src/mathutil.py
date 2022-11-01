@@ -7,7 +7,7 @@ from scipy.optimize import leastsq
 def eq_fun(no_p, x):
     return x
 
-
+np.seterr(all='raise') # strict mode
 class FitFunction(object):
     parameter_count = 0
     best_parameters = []

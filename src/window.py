@@ -1,8 +1,11 @@
+import os
 from src.control import *
 from src.mathutil import *
 
 import tkinter as tk
 from tkinter import ttk
+from tkinter import filedialog
+from tkinter import messagebox
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 
@@ -308,6 +311,7 @@ class DataInputArea(tk.Frame):
         self.data_index = len(self.data) - 1
         self.events[0]()
         self.activate()
+        self.update_to_index(self.data_index)
 
     def activate(self):
         if self.activated:
@@ -336,10 +340,14 @@ class DataInputArea(tk.Frame):
         self.activate()
         self.x_var.set(str(self.data[index][0]))
         self.y_var.set(str(self.data[index][1]))
+        self.x_input.focus()
+        self.x_input.selection_range(0, "end")
 
-    def save_and_deactivate(self):
+    def save_and_deactivate(self, _=None):
         self.save_index()
         self.deactivate()
+        self.data_index = -1
+        self.events[0]()
 
     def save_and_next(self):
         if self.data_index == -1:
@@ -360,6 +368,7 @@ class DataInputArea(tk.Frame):
             return
 
         self.events[1](self.data_index)
+        self.update_to_index(self.data_index)
 
     def bind_events(self, events):
         # event 0 : update listbox
@@ -370,17 +379,49 @@ class DataInputArea(tk.Frame):
     def enter_event(self, _=None):
         if self.activated:
             self.save_and_next()
-            self.x_input.focus()
-            self.x_input.selection_range(0, "end")
 
     def submit_all(self):
+        self.save_and_deactivate()
         self.events[3]()
 
     def discard_all(self):
         self.events[4]()
 
+    def get_index(self):
+        return self.data_index
+
+    def export_data(self):
+        files = [("JSON data", "*.json"), ("All files", "*.*")]
+        path = filedialog.asksaveasfilename(
+            filetypes=files, defaultextension=files)
+        if path != "":
+            path = os.path.abspath(path)
+            try:
+                json_write(path, self.data)
+                messagebox.showinfo("成功", "数据导出成功")
+            except Exception as e:
+                messagebox.showerror("失败", f"导出时异常：\n{e}")
+        self.lift()
+
+    def import_data(self):
+        files = [("JSON data", "*.json"), ("All files", "*.*")]
+        path = filedialog.askopenfilename(filetypes=files, defaultextension=files)
+        if path != "":
+            path = os.path.abspath(path)
+            try:
+                data = json_read(path)
+                self.data.clear()
+                for x,y in data:
+                    self.data.append((x,y))
+                self.data_index = -1
+                self.events[0]()
+                messagebox.showinfo("成功", "数据导入成功")
+            except Exception as e:
+                messagebox.showerror("失败", f"导入时异常：\n{e}")
+        self.lift()
+
     def setup(self):
-        self.config(height=240, width=160)
+        self.config(height=240, width=260)
         using_configuration = self.global_variables.configurations[
             self.global_variables.using_index]
         self.data = self.global_variables.data[:]
@@ -407,6 +448,11 @@ class DataInputArea(tk.Frame):
         self.discard_all_button = ttk.Button(
             self, text="放弃所有更改", command=self.discard_all, takefocus=False)
 
+        self.export_button = ttk.Button(
+            self, text="导出数据", command=self.export_data, takefocus=False)
+        self.import_button = ttk.Button(
+            self, text="导入数据", command=self.import_data, takefocus=False)
+
         self.x_input.bind("<1>", self.fix_focus)
         self.y_input.bind("<1>", self.fix_focus)
 
@@ -415,15 +461,17 @@ class DataInputArea(tk.Frame):
         ]
 
         self.x_label.place(x=0, y=0)
-        self.x_input.place(x=20, y=0)
+        self.x_input.place(x=40, y=0)
         self.y_label.place(x=0, y=30)
-        self.y_input.place(x=20, y=30)
-        self.save_and_next_button.place(x=0, y=70)
-        self.append_button.place(x=0, y=100)
-        self.submit_button.place(x=0, y=130)
-        self.delete_button.place(x=0, y=160)
-        self.submit_all_button.place(x=0, y=190)
-        self.discard_all_button.place(x=0, y=220)
+        self.y_input.place(x=40, y=30)
+        self.append_button.place(x=0, y=70)
+        self.save_and_next_button.place(x=100, y=70)
+        self.submit_button.place(x=0, y=100)
+        self.delete_button.place(x=100, y=100)
+        self.submit_all_button.place(x=0, y=130)
+        self.discard_all_button.place(x=100, y=130)
+        self.export_button.place(x=0, y=160)
+        self.import_button.place(x=100, y=160)
 
 
 class DataListBoxArea(tk.Frame):
@@ -437,10 +485,7 @@ class DataListBoxArea(tk.Frame):
 
     def update_list(self):
         self.data_raw = []
-        idx = -1
-        idxs = self.data_listbox.curselection()
-        if len(idxs) == 1:
-            idx = int(idxs[0])
+        idx = self.events[2]()
         idx0 = 0
         for d in self.events[1]:
             x, y = d
@@ -487,7 +532,6 @@ class DataListBoxArea(tk.Frame):
         self.data_listbox.select_clear(0, "end")
         self.data_listbox.selection_set(index)
         self.data_listbox.see(index)
-        
 
     def bind_events(self, events):
         self.events = events[:]
@@ -498,7 +542,7 @@ class DataWindow(SubWindow):
         super().__init__(global_variables)
 
     def setup(self):
-        self.geometry("600x300")
+        self.geometry("650x300")
         self.title("编辑数据")
         self.edition_label = tk.Label(self, text="实验数据")
         self.edition_listbox_frame = DataListBoxArea(
@@ -506,10 +550,11 @@ class DataWindow(SubWindow):
         self.edition_input_frame = DataInputArea(self, self.global_variables)
 
         self.edition_listbox_frame.bind_events(
-            [self.edition_input_frame.update_to_index, self.edition_input_frame.data])
+            [self.edition_input_frame.update_to_index, self.edition_input_frame.data, self.edition_input_frame.get_index])
         self.edition_input_frame.bind_events(
-            [self.edition_listbox_frame.update_list, self.edition_listbox_frame.set_cur, self.edition_listbox_frame.get_index,self.submit,self.destroy])
+            [self.edition_listbox_frame.update_list, self.edition_listbox_frame.set_cur, self.edition_listbox_frame.get_index, self.submit, self.destroy])
         self.bind("<Return>", self.edition_input_frame.enter_event)
+        self.bind("<Shift-Return>", self.edition_input_frame.save_and_deactivate)
         self.edition_listbox_frame.update_list()
 
         self.edition_label.place(x=10, y=10)
@@ -527,6 +572,7 @@ class ControlArea(tk.Frame):
     events = []
     data_window_flag = 0
     configuration_window_flag = 0
+    ask_path_window_flag = 0
 
     def __init__(self, parent, global_variables):
         self.global_variables: GlobalVars = global_variables
@@ -534,28 +580,36 @@ class ControlArea(tk.Frame):
         self.place(x=0, y=0)
         self.setup()
 
+    def save_fig(self):
+        if self.ask_path_window_flag:
+            return
+        self.ask_path_window_flag = 1
+        files = [("PNG Image", "*.png"), ("All Files", "*.*")]
+        path = filedialog.asksaveasfilename(
+            filetypes=files, defaultextension=files)
+        if path != "":
+            abs_path = os.path.abspath(path)
+            try:
+                self.events[2](abs_path)
+                messagebox.showinfo("成功", "图像保存成功")
+            except Exception as e:
+                messagebox.showerror("失败", str(e))
+        self.ask_path_window_flag = 0
+
     def setup(self):
         self.config(width=800, height=100)
         all_confs = [i.name for i in self.global_variables.configurations]
 
         self.combo_box_label = tk.Label(self, text="数据类型")
         self.combo_box = ttk.Combobox(self, width=20)
-        self.conf_button = ttk.Button(self, text="编辑", command=self.do_conf)
-        self.data_label = tk.Label(self, text="实验数据")
-        self.data_button = ttk.Button(
-            self, text="编辑数据", command=self.create_data_window)
-
-        self.combo_box.config(
-            values=(all_confs + ["新建数据类型"]), state="readonly")
+        self.combo_box.config(values=all_confs, state="readonly")
         self.combo_box.current(0)
         self.combo_box.bind("<<ComboboxSelected>>", self.on_combo_box_change)
-        self.combo_box_label.place(x=20, y=20)
-        self.combo_box.place(x=20, y=50)
-        self.conf_button.place(x=200, y=50)
-        self.data_label.place(x=400, y=20)
-        self.data_button.place(x=400, y=50)
 
-    def create_data_window(self):
+        self.combo_box_label.place(x=75, y=20)
+        self.combo_box.place(x=75, y=50)
+
+    def create_data_window(self,_=None):
         if self.data_window_flag:
             return
         self.data_window_flag = 1
@@ -573,8 +627,7 @@ class ControlArea(tk.Frame):
 
     def update_all(self):
         all_confs = [i.name for i in self.global_variables.configurations]
-        self.combo_box.config(
-            values=(all_confs + ["新建数据类型"]), state="readonly")
+        self.combo_box.config(values=all_confs, state="readonly")
 
     def do_conf(self):
         idx = self.combo_box.current()
@@ -599,42 +652,45 @@ class ControlArea(tk.Frame):
     def bind_events(self, events):
         self.events = events[:]
 
-    def on_combo_box_change(self, _):
+    def new_conf(self):
         if self.configuration_window_flag:
             return
-        length = len(self.combo_box["value"])
-        if (self.combo_box.current() + 1) == length:
-            self.global_variables.editing_index = -1
-            self.combo_box.current(0)
-            self.global_variables.editing_configuration = new_configuration.copy()
-            self.configuration_window = ConfigurationWindow(
-                self.global_variables)
-            self.configuration_window_flag = 1
-            while self.configuration_window_flag:
-                self.configuration_window.update()
-                try:
-                    if not self.configuration_window.winfo_exists():
-                        self.configuration_window_flag = 0
-                except:
+        self.configuration_window_flag = 1
+        self.global_variables.editing_index = -1
+        self.global_variables.editing_configuration = new_configuration.copy()
+        self.configuration_window = ConfigurationWindow(
+            self.global_variables)
+        self.configuration_window_flag = 1
+        while self.configuration_window_flag:
+            self.configuration_window.update()
+            try:
+                if not self.configuration_window.winfo_exists():
                     self.configuration_window_flag = 0
-            self.update_all()
-        else:
-            idx = self.combo_box.current()
-            self.global_variables.using_index = idx
-            self.events[0](self.global_variables.configurations[idx])
+            except:
+                self.configuration_window_flag = 0
+        self.update_all()
+
+    def on_combo_box_change(self, _):
+        idx = self.combo_box.current()
+        self.global_variables.using_index = idx
+        self.events[0](self.global_variables.configurations[idx])
 
 
 class FigureArea(tk.Frame):
+    events = []
+
     def __init__(self, parent, global_variables):
-        self.global_variables : GlobalVars = global_variables
+        self.global_variables: GlobalVars = global_variables
         super().__init__(parent)
         self.place(x=0, y=100)
         self.setup()
 
     def setup(self):
-        self.config(background="green", width=500, height=500)
+        self.config(width=500, height=500)
         self.figure_control = FigureControl()
         self.canvas = FigureCanvasTkAgg(self.figure_control.figure, self)
+
+        self.figure_control.bind_events([self.raise_error])
         self.figure_control.first_run()
         self.canvas.draw()
         self.canvas.get_tk_widget().pack()
@@ -647,7 +703,48 @@ class FigureArea(tk.Frame):
     def update(self):
         self.figure_control.data = self.global_variables.data[:]
         self.figure_control.update()
+        self.events[0]()
         self.canvas.draw()
+
+    def save_figure(self, path):
+        self.figure_control.figure.savefig(path)
+
+    def bind_events(self, events):
+        self.events = events[:]
+
+    def raise_error(self, message):
+        messagebox.showerror("错误", str(message))
+
+
+class ParameterArea(tk.Frame):
+    events = []
+
+    def __init__(self, parent, global_variables):
+        self.global_variables: GlobalVars = global_variables
+        super().__init__(parent)
+        self.place(x=650, y=100)
+        self.setup()
+
+    def setup(self):
+        self.config(height=500, width=250,)
+        self.text = tk.Label(self, width=30)
+
+        self.text.place(x=0, y=0)
+
+    def update(self):
+        control: FigureControl = self.events[0]()
+        parameters = control.fit.best_parameters[:]
+        para_alias = self.global_variables.configurations[
+            self.global_variables.using_index].parameter_names[:]
+        if len(parameters) < len(para_alias):
+            parameters = [0 for _ in parameters]
+        text = "[拟合参数]\n"
+        for (name, value) in zip(para_alias, parameters):
+            text += f"{name} : {'%.4f'%value}\n"
+        self.text.config(text=text)
+
+    def bind_events(self, events):
+        self.events = events[:]
 
 
 class App(tk.Tk):
@@ -657,15 +754,36 @@ class App(tk.Tk):
         self.setup()
 
     def setup(self):
-        self.geometry("800x600")
+        self.geometry("900x600")
         self.title("实验数据处理分析系统")
 
         control = ControlArea(self, self.global_variables)
         figure = FigureArea(self, self.global_variables)
+        parameter = ParameterArea(self, self.global_variables)
+        menu = tk.Menu(self)
+        data_menu = tk.Menu(menu, tearoff=False)
 
         control.bind_events([
-            figure.change,figure.update
+            figure.change, figure.update, figure.save_figure
         ])
+        parameter.bind_events([
+            lambda: figure.figure_control
+        ])
+        parameter.update()
+        figure.bind_events([parameter.update])
+
+        menu.add_cascade(label="编辑", menu=data_menu)
+        data_menu.add_command(label="编辑数据", command=control.create_data_window,accelerator="Shift + D")
+        data_menu.add_separator()
+        data_menu.add_command(label="编辑当前数据类型", command=control.do_conf)
+        data_menu.add_command(label="新建数据类型", command=control.new_conf)
+        data_menu.add_command(
+            label="保存数据类型到本地", command=self.global_variables.save_config)
+        data_menu.add_separator()
+        data_menu.add_command(label="导出图像", command=control.save_fig)
+        self.config(menu=menu)
+
+        self.bind("<Shift-D>",control.create_data_window)
 
         self.lift()
 

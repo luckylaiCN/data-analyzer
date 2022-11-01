@@ -8,21 +8,22 @@ def eq_fun(no_p, x):
     return x
 
 np.seterr(all='raise') # strict mode
-class FitFunction(object):
+
+class FitFunction(object): # 拟合函数模型的基类，统一继承该模型
     parameter_count = 0
     best_parameters = []
 
     def __init__(self) -> None:
         raise NotImplementedError("FitFunction Not Implemented.")
 
-    def do_fit(self, x, y):
+    def do_fit(self, x, y): # 拟合函数
         raise NotImplementedError("FitFunction.dofit Not Implemented.")
 
-    def f(self, x):
+    def f(self, x): # 求值函数
         raise NotImplementedError("FitFunction.f Not Implemented.")
 
 
-class LeastSQFunction(FitFunction):
+class LeastSQFunction(FitFunction): # 最小二乘拟合方式的基类
     fun = eq_fun
     parameter_count = 0
 
@@ -54,7 +55,7 @@ class LeastSQFunction(FitFunction):
         plt.show()
 
 
-class PolyFit(FitFunction):
+class PolyFit(FitFunction): # 多项式拟合
     def __init__(self, deg):
         self.deg = deg
         self.parameter_count = deg + 1
@@ -155,11 +156,15 @@ unique_id = {
     "3a91c05ee48915fffee93a85e99eefdf": InverseProportionalFunctionSQ,
 }
 
+# 由类名生成的unique id
+
 uid_inv = {}
 for key in unique_id:
     uid_inv[unique_id[key].__name__] = key
 
-if __name__ == "__main__":
+# 逆向匹配
+
+if __name__ == "__main__": # 无脑测试
     import sys
     if len(sys.argv) > 1:
         inp = int(sys.argv[1])

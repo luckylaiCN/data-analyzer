@@ -14,18 +14,19 @@ def empty_promise(_):
     return
 
 
-class SubWindow(tk.Tk):
+class SubWindow(tk.Tk): # 通用窗口基类
     events = []
 
     def __init__(self, global_variables):
         self.global_variables: GlobalVars = global_variables
         super().__init__()
         self.setup()
+        self.resizable(width=False,height=False) # 禁止更改窗口大小
 
-    def setup(self):
+    def setup(self): # 默认初始化函数
         raise NotImplementedError("SubWindow Not Implemented.")
 
-    def bind_events(self, events):
+    def bind_events(self, events): # 事件绑定
         self.events = events[:]
 
 
@@ -52,6 +53,7 @@ class InputWindow(tk.Tk):
     def setup(self):
         self.geometry("200x70")
         self.title("输入")
+        self.resizable(width=False,height=False)
 
         self.input_var = tk.StringVar(master=self, value=self.value)
         self.input_box = ttk.Entry(self, textvariable=self.input_var, width=24)
@@ -400,7 +402,7 @@ class DataInputArea(tk.Frame):
                 json_write(path, self.data)
                 messagebox.showinfo("成功", "数据导出成功")
             except Exception as e:
-                messagebox.showerror("失败", f"导出时异常：\n{e}")
+                messagebox.showerror("错误", f"导出时异常：\n{e}")
         self.lift()
 
     def import_data(self):
@@ -417,7 +419,7 @@ class DataInputArea(tk.Frame):
                 self.events[0]()
                 messagebox.showinfo("成功", "数据导入成功")
             except Exception as e:
-                messagebox.showerror("失败", f"导入时异常：\n{e}")
+                messagebox.showerror("错误", f"导入时异常：\n{e}")
         self.lift()
 
     def setup(self):
@@ -444,9 +446,9 @@ class DataInputArea(tk.Frame):
         self.delete_button = ttk.Button(
             self, text="删除本条", state="disabled", command=self.delete_index, takefocus=False)
         self.submit_all_button = ttk.Button(
-            self, text="保存所有数据", command=self.submit_all, takefocus=False)
+            self, text="保存更改", command=self.submit_all, takefocus=False)
         self.discard_all_button = ttk.Button(
-            self, text="放弃所有更改", command=self.discard_all, takefocus=False)
+            self, text="放弃更改", command=self.discard_all, takefocus=False)
 
         self.export_button = ttk.Button(
             self, text="导出数据", command=self.export_data, takefocus=False)
@@ -470,8 +472,8 @@ class DataInputArea(tk.Frame):
         self.delete_button.place(x=100, y=100)
         self.submit_all_button.place(x=0, y=130)
         self.discard_all_button.place(x=100, y=130)
-        self.export_button.place(x=0, y=160)
-        self.import_button.place(x=100, y=160)
+        self.export_button.place(x=0, y=170)
+        self.import_button.place(x=100, y=170)
 
 
 class DataListBoxArea(tk.Frame):
@@ -566,13 +568,21 @@ class DataWindow(SubWindow):
 
     def bind_events(self, events):
         self.events = events[:]
+class About(SubWindow):
+    def __init__(self, global_variables):
+        super().__init__(global_variables)
 
+    def setup(self):
+        self.title("关于")
+        self.label = tk.Label(self,text=MIT_LICENSE_STR)
+        self.label.pack()
 
 class ControlArea(tk.Frame):
     events = []
     data_window_flag = 0
     configuration_window_flag = 0
     ask_path_window_flag = 0
+    about_window_flag = 0
 
     def __init__(self, parent, global_variables):
         self.global_variables: GlobalVars = global_variables
@@ -580,7 +590,7 @@ class ControlArea(tk.Frame):
         self.place(x=0, y=0)
         self.setup()
 
-    def save_fig(self):
+    def save_fig(self,_=None):
         if self.ask_path_window_flag:
             return
         self.ask_path_window_flag = 1
@@ -593,7 +603,7 @@ class ControlArea(tk.Frame):
                 self.events[2](abs_path)
                 messagebox.showinfo("成功", "图像保存成功")
             except Exception as e:
-                messagebox.showerror("失败", str(e))
+                messagebox.showerror("错误", str(e))
         self.ask_path_window_flag = 0
 
     def setup(self):
@@ -674,6 +684,26 @@ class ControlArea(tk.Frame):
         idx = self.combo_box.current()
         self.global_variables.using_index = idx
         self.events[0](self.global_variables.configurations[idx])
+
+    def create_about_window(self):
+        if self.about_window_flag:
+            return
+        self.about_window_flag = 1
+        self.about_window = About(self.global_variables)
+        while self.about_window_flag:
+            self.about_window.update()
+            try:
+                if not self.about_window.winfo_exists():
+                    self.about_window_flag = 0
+            except:
+                self.about_window_flag = 0
+
+    def save_config(self):
+        try:
+            self.global_variables.save_config()
+            messagebox.showinfo("成功","参数信息已储存在.config文件，下次启动将自动加载")
+        except Exception as e:
+            messagebox.showerror("错误",f"保存时出现异常:{e}")
 
 
 class FigureArea(tk.Frame):
@@ -756,6 +786,7 @@ class App(tk.Tk):
     def setup(self):
         self.geometry("900x600")
         self.title("实验数据处理分析系统")
+        self.resizable(width=False,height=False)
 
         control = ControlArea(self, self.global_variables)
         figure = FigureArea(self, self.global_variables)
@@ -773,17 +804,20 @@ class App(tk.Tk):
         figure.bind_events([parameter.update])
 
         menu.add_cascade(label="编辑", menu=data_menu)
+        menu.add_cascade(label="关于", command=control.create_about_window)
         data_menu.add_command(label="编辑数据", command=control.create_data_window,accelerator="Shift + D")
         data_menu.add_separator()
         data_menu.add_command(label="编辑当前数据类型", command=control.do_conf)
         data_menu.add_command(label="新建数据类型", command=control.new_conf)
         data_menu.add_command(
-            label="保存数据类型到本地", command=self.global_variables.save_config)
+            label="保存数据类型到本地", command=control.save_config)
         data_menu.add_separator()
-        data_menu.add_command(label="导出图像", command=control.save_fig)
+        data_menu.add_command(label="导出图像", command=control.save_fig,accelerator="Shift + F")
+
         self.config(menu=menu)
 
         self.bind("<Shift-D>",control.create_data_window)
+        self.bind("<Shift-F>",control.save_fig)
 
         self.lift()
 

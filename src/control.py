@@ -3,6 +3,31 @@ from src.mathutil import *
 from matplotlib.figure import Figure
 import numpy as np
 
+MIT_LICENSE_STR = """MIT License
+
+Copyright (c) 2022 Lucky Lai
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+# MIT License 的全文，用于About窗口的文字说明
+
 
 def json_read(filepath):
     try:
@@ -22,7 +47,7 @@ def json_write(filepath, obj):
         return False
 
 
-class DataConfiuration:
+class DataConfiuration: # 神奇的拟合属性配置
     configuration = {
         "fitMode": "fa5e3fcdb39bcd9157b809e3ca772214",
         "nameDefinations": {
@@ -162,7 +187,7 @@ new_configuration.load_configuration_content({
 })
 
 
-class FigureControl(object):
+class FigureControl(object): # 图像控制
     fit: FitFunction
     events = []
 
@@ -191,7 +216,10 @@ class FigureControl(object):
             return
         x = np.array([i[0] for i in self.data])
         y = np.array([i[1] for i in self.data])
-        x_range = np.linspace(min(min(x),0), max(x), 100) # 因为神奇的要求把x压到0去
+        if type(self.fit) == InverseProportionalFunctionSQ:
+            x_range = np.linspace(min(x), max(x), 100) # div0 异常的处理
+        else:
+            x_range = np.linspace(min(min(x),0), max(x), 100) # 因为神奇的要求把x压到0去
         try:
             self.fit.do_fit(x,y)
             y_fitted = self.fit.f(x_range)
@@ -213,7 +241,7 @@ class FigureControl(object):
         self.events = events[:]
 
 
-class GlobalVars:
+class GlobalVars: # tk下的全局变量
     input_set = []
     configurations = []
     editing_configuration = default_configuration.copy()
